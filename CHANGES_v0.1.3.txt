@@ -1,0 +1,11 @@
+AUX TRACK ADII v0.1.3 — Incremental update (only changed files)
+
+- Dashboard: pending/entered/all, YTD/month/all/custom dates; recent activities and mission-code breakdown follow filters. YTD metric cards remain historical.
+- Activity Records: search, mission code, status and date interval filters; mobile record cards and compact action menu.
+- AUXDATA II imported records (MA IDs) are read-only in both UI and handlers.
+- Manually marked Entered records cannot be edited/deleted until confirmed Undo to Pending.
+- New and pending entries retain edit/delete; changes persist in same localStorage key.
+- PWA cache version updated.
+
+Replace only these files in DEV. PROJECTS/AUX_TRACK_ADII: app.js, index.html, styles.css, sw.js.
+Do NOT delete browser data, PDF, vendor, or existing app folder.
