@@ -16,3 +16,24 @@
 
 /* AUX10 mission code reference, mobile-first; preserves approved colors and layout. */
 .aux10-panel{max-width:1000px}.aux10-tools{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0}.pdf-link,.code-actions a{display:inline-flex;align-items:center;padding:10px 14px;border-radius:10px;border:1px solid #c5d3e0;background:white;color:#0b3557;text-decoration:none;font-weight:700;font-size:12px}.code-results{margin-top:12px}.code-result{border:1px solid #e2e9f0;border-radius:12px;padding:14px;display:flex;justify-content:space-between;gap:14px;align-items:center;margin:9px 0;background:#fff}.code-main{display:flex;align-items:flex-start;gap:12px;min-width:0}.code-main strong{display:block;color:#0b2949;font-size:14px}.code-main small{display:block;color:#697e90;margin-top:4px}.code-main p{font-size:12px;color:#536c82;line-height:1.5;margin:6px 0 0}.code-pill{display:inline-block;padding:7px 9px;background:#092849;color:#fff;border-radius:9px;font-weight:800;font-size:13px;flex-shrink:0}.code-pill.outline{background:#ecf1f6;color:#193d5b}.code-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0}.code-results h3{color:#092849;margin:22px 0 11px}.code-picker{background:transparent;border:0;color:#bf0d20;font-size:12px;font-weight:800;justify-self:start;padding:5px 0;cursor:pointer}@media(max-width:700px){.code-result{display:block}.code-actions{margin:12px 0 0 0}.code-actions a,.code-actions button{min-height:39px}.bottom-nav{grid-template-columns:repeat(6,minmax(0,1fr))}.bottom-nav button{font-size:19px}.bottom-nav button span{font-size:9px}}
+
+/* ADII v0.1.2: compact PDF with page-safe grouped rows and no worksheet legacy. */
+@media print {
+ @page {size:landscape;margin:10mm 12mm}
+ .print-only .print-cat{break-inside:auto!important;page-break-inside:auto!important;margin:10px 0 15px}
+ .print-only .print-cat h2{font-size:12px;margin:13px 0 6px;break-after:avoid;page-break-after:avoid}
+ .print-only table{width:100%;font-size:9px;table-layout:fixed}
+ .print-only th,.print-only td{padding:4px 5px;overflow-wrap:anywhere}
+ .print-only th:nth-child(1){width:10%}
+ .print-only th:nth-child(2){width:9%}
+ .print-only th:nth-child(3){width:9%}
+ .print-only th:nth-child(4){width:8%}
+ .print-only th:nth-child(5){width:37%}
+ .print-only th:nth-child(6){width:17%}
+ .print-only th:nth-child(7){width:10%}
+ .print-only thead{display:table-header-group}
+ .print-only tbody tr{break-inside:avoid;page-break-inside:avoid}
+ .print-only .print-stats{gap:24px;margin:10px 0 12px}
+ .print-only .print-sub{margin-bottom:10px}
+ .print-only .print-footer{font-size:9px;color:#53677a;text-align:center;padding-top:8px;border-top:1px solid #d9e2eb;margin-top:18px}
+}
