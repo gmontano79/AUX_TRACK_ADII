@@ -1,0 +1,25 @@
+{
+  "name": "AUX TRACK ADII \u2014 AUXDATA II Hours Log",
+  "short_name": "AUX TRACK ADII",
+  "description": "Official mission-code reference and personal AUXDATA II hours tracker. Unofficial.",
+  "start_url": "./index.html?app=aux-track-adii",
+  "display": "standalone",
+  "background_color": "#f2f5fa",
+  "theme_color": "#092849",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "id": "./index.html?app=aux-track-adii",
+  "scope": "./"
+}
