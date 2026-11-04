@@ -1,4 +1,4 @@
-# AUX TRACK ADII v0.1.0
+# AUX TRACK ADII v0.1.1
 
 Separate edition from AUX TRACK (Nichole). Uses official mission codes referenced in AUX10; retains original AUX10 PDF without modification.
 
@@ -18,3 +18,6 @@ Separate edition from AUX TRACK (Nichole). Uses official mission codes reference
 
 ## Deployment
 Copy all folder contents to your separate `AUX_TRACK_ADII` repository root, then commit and push via GitHub Desktop. Enable GitHub Pages. Do not copy into the Nichole AUX_TRACK directory.
+
+## v0.1.1 import fix
+More robust AUXDATA II Total Mission header/column recognition with validated record structure fallback, filename-based diagnostics, preview before applying, and unchanged local data key.

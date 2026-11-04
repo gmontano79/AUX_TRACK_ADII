@@ -68,18 +68,52 @@ async function auxdataImport(file){
  const s=z.file('xl/worksheets/sheet1.xml');if(!s)throw Error('No worksheet found in AUXDATA II report.');
  const root=parse(await s.async('string'));const rows=Array.from(root.getElementsByTagNameNS(XML,'row'));
  const data=rows.map(row=>{let vals={};for(const c of Array.from(row.getElementsByTagNameNS(XML,'c'))){const col=c.getAttribute('r').match(/^[A-Z]+/)[0];vals[col]=xmlText(c,strings)}return vals});
- // Find headers by their names rather than relying on fixed workbook positions.
- const canonical=v=>String(v||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();
- const expected={ma:['member activity record number'],date:['mission date'],code:['mission code'],hours:['activity duration']};
+ // Read the actual AUXDATA II Total Mission structure. Some exports vary
+ // their header labels, but the MA identifier and adjoining record values
+ // provide a safe structural cross-check; never import by position alone.
+ const canonical=v=>String(v??'').normalize('NFKC').replace(/[\u00a0\u200b]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+ const expected={
+  ma:['member activity record number','member activity record','activity record number'],
+  date:['mission date','date of mission'],
+  code:['mission code','mission type'],
+  hours:['activity duration','duration of activity','hours']
+ };
  const findColumn=(row,aliases)=>Object.entries(row).find(([col,val])=>aliases.some(a=>canonical(val).includes(a)))?.[0]||'';
- let header=-1,columns=null;
- for(let i=0;i<data.length;i++){
+ const isDate=v=>/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(String(v??'').trim())||/^\d{4}-\d\d-\d\d/.test(String(v??'').trim())||(/^\d{5}$/.test(String(v??'').trim())&&Number(v)>20000);
+ const isCode=v=>/^\d{1,2}[A-Z]?(?:\s*:\s*.+)?$/i.test(String(v??'').trim());
+ const isHours=v=>/^\d+(?:\.\d+)?$/.test(String(v??'').trim())&&Number(v)>0&&Number(v)<=24;
+ let header=-1,columns=null,method='header';
+ for(let i=0;i<Math.min(data.length,80);i++){
   const found=Object.fromEntries(Object.entries(expected).map(([key,aliases])=>[key,findColumn(data[i],aliases)]));
-  if(Object.values(found).every(Boolean)){header=i;columns=found;break;}
+  if(Object.values(found).every(Boolean)&&new Set(Object.values(found)).size===4){header=i;columns=found;break;}
  }
  if(header<0){
-  const sample=data.slice(0,25).flatMap(r=>Object.values(r)).filter(Boolean).map(String).filter(v=>/mission|activity|duration|record/i.test(v)).slice(0,10);
-  throw Error('AUXDATA II headers were not recognized. Detected: '+(sample.join(' | ')||'none')+'. Please select the original Total Mission .xlsx file.');
+  // AUXDATA II reports have a title in the heading and MA identifiers in
+  // the record table. Infer columns from repeated records only if ALL four
+  // values form a consistent, validated pattern (e.g. F/G/H/I).
+  const hasReportTitle=data.slice(0,12).some(r=>Object.values(r).some(v=>/total mission/i.test(String(v??''))));
+  if(hasReportTitle){
+   const matches=[];
+   for(let i=0;i<Math.min(data.length,100);i++){
+    const r=data[i];const ma=Object.entries(r).find(([,v])=>/^MA-\d+$/i.test(String(v??'').trim()));
+    if(!ma)continue;
+    const cols=Object.keys(r).sort((a,b)=>a.length-b.length||a.localeCompare(b));
+    const dates=cols.filter(k=>isDate(r[k]));const codes=cols.filter(k=>isCode(r[k]));const hours=cols.filter(k=>isHours(r[k]));
+    if(dates.length===1&&codes.length===1&&hours.length===1&&new Set([ma[0],dates[0],codes[0],hours[0]]).size===4)
+     matches.push({i,columns:{ma:ma[0],date:dates[0],code:codes[0],hours:hours[0]}});
+   }
+   const sig=c=>[c.ma,c.date,c.code,c.hours].join('|');
+   const counts=new Map();for(const match of matches){const k=sig(match.columns);counts.set(k,(counts.get(k)||0)+1)}
+   const winner=[...counts.entries()].sort((a,b)=>b[1]-a[1])[0];
+   if(winner&&winner[1]>=Math.min(3,matches.length)&&winner[1]>=2){
+    const match=matches.find(x=>sig(x.columns)===winner[0]);
+    header=match.i-1;columns=match.columns;method='validated record structure';
+   }
+  }
+ }
+ if(header<0){
+  const preview=data.slice(0,24).flatMap(r=>Object.values(r)).filter(Boolean).map(String).filter(v=>/mission|activity|duration|record|hours/i.test(v)).slice(0,12);
+  throw Error('Could not identify AUXDATA II Total Mission columns in "'+file.name+'". Found: '+(preview.join(' | ')||'no recognizable headers')+'. Select the unmodified Total Mission report downloaded from AUXDATA II.');
  }
  const sourceRows=data.slice(header+1).map(r=>({I:r[columns.ma],F:r[columns.date],G:r[columns.code],H:r[columns.hours]}));
  const incoming=[],seen=new Set();let malformed=0;
@@ -88,8 +122,8 @@ async function auxdataImport(file){
   if(seen.has(ma))continue;seen.add(ma);
   const raw=String(r.F||'').trim();let date='';if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw)){const [m,d,y]=raw.split('/');date=`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`}else if(/^\d{4}-\d\d-\d\d/.test(raw))date=raw.slice(0,10);else if(/^\d{5}$/.test(raw)){const d=new Date((Number(raw)-25569)*86400000);if(!Number.isNaN(+d))date=d.toISOString().slice(0,10)}
   const hours=Number(String(r.H||'').replace(/,/g,'')),minutes=Math.round(hours*60);
-  if(!date||!Number.isFinite(minutes)||minutes<=0){malformed++;continue}
-  const rawcode=String(r.G||'').trim();const code=rawcode.split(':')[0].trim().toUpperCase();
+  if(!date||!Number.isFinite(minutes)||minutes<0){malformed++;continue}
+  const rawcode=String(r.G||'').trim();const code=rawcode.split(':')[0].trim().toUpperCase()||'UNASSIGNED';
   let known=CFG.sheets.find(x=>x.name===code)||null;if(!known&&/^[0-9]{1,2}[A-Z]?$/.test(code)){known={name:code,label:rawcode.split(':').slice(1).join(':').trim()||code,capacity:999999};CFG.sheets.push(known);for(const id of ['sheetInput','filterSheet','reportSheet']){const opt=document.createElement('option');opt.value=code;opt.textContent=code+' — '+known.label;$(id).appendChild(opt);}}
   incoming.push({id:'auxdata:'+ma,sourceId:ma,source:'AUXDATA II',created:Date.now(),date,sheet:known?.name||code,missionCode:code,description:rawcode.split(':').slice(1).join(':').trim()||rawcode,start:'',end:'',minutes,miles:0,travel:'',status:'reported',url:''});
  }
@@ -97,14 +131,14 @@ async function auxdataImport(file){
  const byid=new Map(entries.map(e=>[e.id,e]));const bySource=new Map(entries.filter(e=>e.sourceId).map(e=>[e.sourceId,e]));let added=0,updated=0,unchanged=0;
  for(const item of incoming){const old=byid.get(item.id)||bySource.get(item.sourceId);if(old){const changed=old.minutes!==item.minutes||old.date!==item.date||old.missionCode!==item.missionCode;if(changed){updated++;}else unchanged++}else added++}
  const unmapped=[...new Set(incoming.filter(e=>e.sheet==='UNMAPPED').map(e=>e.missionCode))];
- const msg=`AUXDATA II import preview:\nFound: ${incoming.length} valid records\nNew: ${added}\nUpdated: ${updated}\nUnchanged: ${unchanged}\nSkipped invalid: ${malformed}\nUnmapped mission codes: ${unmapped.join(', ')||'none'}\n\nApply this import?`;
+ const msg=`AUXDATA II import preview (${method}):\nFound: ${incoming.length} valid records\nNew: ${added}\nUpdated: ${updated}\nUnchanged: ${unchanged}\nSkipped invalid: ${malformed}\nUnmapped mission codes: ${unmapped.join(', ')||'none'}\n\nApply this import?`;
  if(!confirm(msg))return {cancelled:true};
  const snapshot=[...entries];
  for(const item of incoming){const idx=entries.findIndex(e=>e.id===item.id||e.sourceId===item.sourceId);if(idx<0)entries.push(item);else{const old=entries[idx];entries[idx]={...old,...item,id:old.id,description:old.description&&old.description!==old.missionCode&&old.description!==item.description?old.description:item.description,miles:old.miles||0,travel:old.travel||'',start:old.start||'',end:old.end||''}}}
  if(!store()){entries=snapshot;throw Error('Unable to save imported records. Nothing changed.');}
  render();return {added,updated,unchanged,malformed,unmapped};
 }
-$('auxImport').addEventListener('change',async ev=>{const f=ev.target.files[0];if(!f)return;try{const r=await auxdataImport(f);if(r.cancelled){$('importResult').textContent='Import cancelled.';return}const msg=`Imported: ${r.added} new, ${r.updated} updated, ${r.unchanged} unchanged. Unmapped mission codes: ${r.unmapped.length}.`;$('importResult').textContent=msg;toast(msg)}catch(e){console.error(e);toast('AUXDATA import failed: '+e.message,true)}finally{ev.target.value=''}});
+$('auxImport').addEventListener('change',async ev=>{const f=ev.target.files[0];if(!f)return;try{const r=await auxdataImport(f);if(r.cancelled){$('importResult').textContent='Import cancelled.';return}const msg=`Imported: ${r.added} new, ${r.updated} updated, ${r.unchanged} unchanged. Unmapped mission codes: ${r.unmapped.length}.`;$('importResult').textContent=msg;toast(msg)}catch(e){console.error(e);$('importResult').textContent='Import failed: '+e.message;toast('AUXDATA import failed: '+e.message,true)}finally{ev.target.value=''}});
 
 // AUX10 full-text and mission-code search. Original PDF is not rewritten.
 const normalizeCodeQuery=s=>String(s||'').normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();

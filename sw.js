@@ -1,4 +1,4 @@
-const CACHE='aux-track-adii-v0.1.0';
+const CACHE='aux-track-adii-v0.1.1';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./config.js','./vendor/jszip.min.js','./icon.png','./icon-192.png','./manifest.webmanifest','./aux10-index.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
